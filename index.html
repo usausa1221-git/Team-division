@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>メンバー固定 チーム分けアプリ</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f0f2f5;
+            color: #333;
+        }
+
+        .container {
+            background: white;
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            text-align: center;
+            color: #1a73e8;
+            margin-top: 0;
+        }
+
+        .member-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .member-item {
+            display: flex;
+            align-items: center;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .member-item input {
+            margin-right: 10px;
+            transform: scale(1.3);
+            cursor: pointer;
+        }
+
+        .config {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        input[type="number"] {
+            width: 50px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+            background: #1a73e8;
+            color: white;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #1557b0;
+        }
+
+        .result-area {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        .team-card {
+            background: #fff;
+            border: 2px solid #1a73e8;
+            border-radius: 12px;
+            padding: 15px;
+        }
+
+        .team-title {
+            font-weight: bold;
+            color: #1a73e8;
+            margin-bottom: 8px;
+            border-bottom: 2px solid #e8f0fe;
+            padding-bottom: 5px;
+        }
+
+        .member-name {
+            padding: 3px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h2>チーム分け（まったり民）</h2>
+
+        <p style="font-size: 0.9em; color: #666;">参加するメンバーにチェックを入れてください：</p>
+        <div class="member-selector" id="memberList">
+        </div>
+
+        <div class="config">
+            <span>チーム数:</span>
+            <input type="number" id="teamCount" value="2" min="1">
+        </div>
+
+        <button onclick="splitTeams()">チームを分ける！</button>
+
+        <div id="result" class="result-area"></div>
+    </div>
+
+    <script>
+        // 固定メンバーリスト
+        const defaultMembers = ["うさうさ", "まおまお", "りくやん", "BIGHOTEL", "じお", "なんぶ", "かなた", "わぐり"];
+
+        // 画面ロード時にチェックボックスを生成
+        window.onload = function () {
+            const listDiv = document.getElementById('memberList');
+            defaultMembers.forEach(name => {
+                const label = document.createElement('label');
+                label.className = 'member-item';
+                label.innerHTML = `<input type="checkbox" name="member" value="${name}" checked> ${name}`;
+                listDiv.appendChild(label);
+            });
+        };
+
+        function splitTeams() {
+            // チェックされているメンバーだけを取得
+            const checkboxes = document.querySelectorAll('input[name="member"]:checked');
+            let selectedMembers = Array.from(checkboxes).map(cb => cb.value);
+
+            const teamCount = parseInt(document.getElementById('teamCount').value);
+            const resultDiv = document.getElementById('result');
+
+            if (selectedMembers.length < teamCount) {
+                alert("参加人数がチーム数より少ないです！");
+                return;
+            }
+
+            // シャッフル
+            for (let i = selectedMembers.length - 1; i > 0; i--) {
+                const r = Math.floor(Math.random() * (i + 1));
+                [selectedMembers[i], selectedMembers[r]] = [selectedMembers[r], selectedMembers[i]];
+            }
+
+            // 分割
+            const teams = Array.from({ length: teamCount }, () => []);
+            selectedMembers.forEach((member, index) => {
+                teams[index % teamCount].push(member);
+            });
+
+            // 描画
+            resultDiv.innerHTML = "";
+            teams.forEach((team, index) => {
+                const card = document.createElement('div');
+                card.className = 'team-card';
+                const namesHtml = team.map(m => `<div class="member-name">${m}</div>`).join('');
+                card.innerHTML = `<div class="team-title">チーム ${index + 1}</div>${namesHtml}`;
+                resultDiv.appendChild(card);
+            });
+        }
+    </script>
+
+</body>
+
+</html>
