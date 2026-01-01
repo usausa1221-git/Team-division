@@ -4,11 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>メンバー固定 チーム分けアプリ</title>
+    <title>チーム分けアプリ（NG設定付）</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         body {
             font-family: 'Helvetica Neue', Arial, sans-serif;
-            max-width: 600px;
+            max-width: 650px;
             margin: 20px auto;
             padding: 20px;
             background-color: #f0f2f5;
@@ -28,9 +29,18 @@
             margin-top: 0;
         }
 
+        .section-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: block;
+            border-left: 4px solid #1a73e8;
+            padding-left: 10px;
+            font-size: 0.9em;
+        }
+
         .member-selector {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
             gap: 10px;
             margin-bottom: 20px;
             padding: 15px;
@@ -41,31 +51,36 @@
         .member-item {
             display: flex;
             align-items: center;
-            font-size: 16px;
+            font-size: 14px;
             cursor: pointer;
-            padding: 5px;
         }
 
         .member-item input {
-            margin-right: 10px;
-            transform: scale(1.3);
-            cursor: pointer;
+            margin-right: 8px;
+            transform: scale(1.1);
         }
 
-        .config {
+        .config-box {
+            background: #e8f0fe;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .config-row {
             display: flex;
             align-items: center;
-            gap: 15px;
-            margin-bottom: 20px;
-            font-weight: bold;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
         }
 
+        select,
         input[type="number"] {
-            width: 50px;
-            padding: 8px;
+            padding: 6px;
+            border-radius: 4px;
             border: 1px solid #ccc;
-            border-radius: 6px;
-            text-align: center;
+            background: white;
         }
 
         button {
@@ -79,17 +94,28 @@
             background: #1a73e8;
             color: white;
             transition: background 0.2s;
+            margin-bottom: 10px;
         }
 
         button:hover {
             background: #1557b0;
         }
 
+        button.copy-btn {
+            background: #34a853;
+        }
+
+        #capture-area {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+
         .result-area {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 15px;
-            margin-top: 25px;
         }
 
         .team-card {
@@ -105,74 +131,122 @@
             margin-bottom: 8px;
             border-bottom: 2px solid #e8f0fe;
             padding-bottom: 5px;
+            text-align: center;
         }
 
         .member-name {
-            padding: 3px 0;
+            padding: 4px 0;
+            text-align: center;
         }
     </style>
 </head>
 
 <body>
-
     <div class="container">
         <h2>チーム分け（まったり民）</h2>
 
-        <p style="font-size: 0.9em; color: #666;">参加するメンバーにチェックを入れてください：</p>
-        <div class="member-selector" id="memberList">
-        </div>
+        <span class="section-title">1. 参加メンバー選択</span>
+        <div class="member-selector" id="memberList"></div>
 
-        <div class="config">
-            <span>チーム数:</span>
-            <input type="number" id="teamCount" value="2" min="1">
+        <div class="config-box">
+            <span class="section-title">2. 分け方の設定</span>
+            <div class="config-row">
+                <span>チーム数:</span>
+                <input type="number" id="teamCount" value="2" min="2" max="6" style="width: 50px;">
+            </div>
+            <div class="config-row">
+                <span>バラバラにする3人:</span>
+                <select id="ng1">
+                    <option value="">なし</option>
+                </select>
+                <select id="ng2">
+                    <option value="">なし</option>
+                </select>
+                <select id="ng3">
+                    <option value="">なし</option>
+                </select>
+            </div>
         </div>
 
         <button onclick="splitTeams()">チームを分ける！</button>
 
-        <div id="result" class="result-area"></div>
+        <div id="capture-area">
+            <div id="result" class="result-area"></div>
+        </div>
+
+        <button id="copyBtn" class="copy-btn" style="display:none;" onclick="copyResultImage()">結果を画像としてコピー</button>
     </div>
 
     <script>
-        // 固定メンバーリスト
         const defaultMembers = ["うさうさ", "まおまお", "りくやん", "BIGHOTEL", "じお", "なんぶ", "かなた", "わぐり"];
 
-        // 画面ロード時にチェックボックスを生成
         window.onload = function () {
             const listDiv = document.getElementById('memberList');
+            const ngSelects = [document.getElementById('ng1'), document.getElementById('ng2'), document.getElementById('ng3')];
+
             defaultMembers.forEach(name => {
+                // チェックボックス
                 const label = document.createElement('label');
                 label.className = 'member-item';
                 label.innerHTML = `<input type="checkbox" name="member" value="${name}" checked> ${name}`;
                 listDiv.appendChild(label);
+
+                // NGセレクト
+                ngSelects.forEach(sel => {
+                    sel.add(new Option(name, name));
+                });
             });
         };
 
         function splitTeams() {
-            // チェックされているメンバーだけを取得
-            const checkboxes = document.querySelectorAll('input[name="member"]:checked');
-            let selectedMembers = Array.from(checkboxes).map(cb => cb.value);
-
+            const selectedMembers = Array.from(document.querySelectorAll('input[name="member"]:checked')).map(cb => cb.value);
             const teamCount = parseInt(document.getElementById('teamCount').value);
-            const resultDiv = document.getElementById('result');
+            const ngList = [
+                document.getElementById('ng1').value,
+                document.getElementById('ng2').value,
+                document.getElementById('ng3').value
+            ].filter(v => v !== "");
 
-            if (selectedMembers.length < teamCount) {
-                alert("参加人数がチーム数より少ないです！");
+            if (selectedMembers.length < teamCount) { alert("人数が不足しています"); return; }
+
+            let teams;
+            let success = false;
+
+            // 最大500回シャッフルを試行して条件に合うものを探す
+            for (let i = 0; i < 500; i++) {
+                let pool = [...selectedMembers];
+
+                // シャッフル（フィッシャー・イェーツ）
+                for (let j = pool.length - 1; j > 0; j--) {
+                    const r = Math.floor(Math.random() * (j + 1));
+                    [pool[j], pool[r]] = [pool[r], pool[j]];
+                }
+
+                // チーム配分
+                teams = Array.from({ length: teamCount }, () => []);
+                pool.forEach((m, idx) => {
+                    teams[idx % teamCount].push(m);
+                });
+
+                // NGチェック（各チーム内にNG指定された人が2人以上いないか）
+                let hasConflict = false;
+                if (ngList.length > 1) {
+                    teams.forEach(team => {
+                        const count = ngList.filter(n => team.includes(n)).length;
+                        if (count > 1) hasConflict = true;
+                    });
+                }
+
+                if (!hasConflict) { success = true; break; }
+            }
+
+            if (!success) {
+                alert("指定された3人をバラバラにできませんでした（チーム数が足りないか、運が悪いです）。もう一度試すか、チーム数を増やしてください。");
                 return;
             }
 
-            // シャッフル
-            for (let i = selectedMembers.length - 1; i > 0; i--) {
-                const r = Math.floor(Math.random() * (i + 1));
-                [selectedMembers[i], selectedMembers[r]] = [selectedMembers[r], selectedMembers[i]];
-            }
-
-            // 分割
-            const teams = Array.from({ length: teamCount }, () => []);
-            selectedMembers.forEach((member, index) => {
-                teams[index % teamCount].push(member);
-            });
-
-            // 描画
+            // 結果の描画
+            const resultDiv = document.getElementById('result');
             resultDiv.innerHTML = "";
             teams.forEach((team, index) => {
                 const card = document.createElement('div');
@@ -181,9 +255,29 @@
                 card.innerHTML = `<div class="team-title">チーム ${index + 1}</div>${namesHtml}`;
                 resultDiv.appendChild(card);
             });
+
+            document.getElementById('copyBtn').style.display = 'block';
+        }
+
+        async function copyResultImage() {
+            const captureArea = document.getElementById('capture-area');
+            const btn = document.getElementById('copyBtn');
+            btn.innerText = "画像生成中...";
+
+            try {
+                const canvas = await html2canvas(captureArea, { backgroundColor: "#f0f2f5", scale: 2 });
+                canvas.toBlob(async (blob) => {
+                    const item = new ClipboardItem({ "image/png": blob });
+                    await navigator.clipboard.write([item]);
+                    alert("画像をクリップボードにコピーしました！");
+                    btn.innerText = "結果を画像としてコピー";
+                });
+            } catch (err) {
+                alert("コピーに失敗しました。最新のブラウザで試してください。");
+                btn.innerText = "結果を画像としてコピー";
+            }
         }
     </script>
-
 </body>
 
 </html>
